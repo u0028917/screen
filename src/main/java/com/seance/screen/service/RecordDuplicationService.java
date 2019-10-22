@@ -1,6 +1,7 @@
 package com.seance.screen.service;
 
-import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author master
@@ -15,10 +16,10 @@ public interface RecordDuplicationService {
     /**
      * 主干方法
      */
-    void main(String path);
+    void main(String path, Map<String, List<String>> screenJd, Boolean openDelete);
 
     /**
-     * 去重
+     * 筛选简历
      */
     void duplicateRemoval();
 }

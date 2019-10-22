@@ -37,6 +37,11 @@ public class ResumeDto {
     String graduationTime;
 
     /**
+     * 学历
+     */
+    String education;
+
+    /**
      * 双层学历
      */
     Boolean doubleEducation;
@@ -203,6 +208,14 @@ public class ResumeDto {
 
     public void setEffective(Map<String, Boolean> effective) {
         this.effective = effective;
+    }
+
+    public String getEducation() {
+        return education;
+    }
+
+    public void setEducation(String education) {
+        this.education = education;
     }
 
     @Override

@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 @Service
 public class RecordDuplicationServiceImpl implements RecordDuplicationService {
 
-    ThreadLocal<Map<String, List>> threadLocal = new ThreadLocal<>();
+    ThreadLocal<Map<String, List<String>>> threadLocal = new ThreadLocal<Map<String, List<String>>>();
 
     private static Pattern yearP = Pattern.compile("\\d{4}");
 
@@ -62,6 +62,7 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
                     .append("年龄").append(",")
                     .append("毕业日期").append(",")
                     .append("毕业年龄").append(",")
+                    .append("学历").append(",")
                     .append("工作年限").append(",")
                     .append("双层学历").append(",")
                     .append("重复次数").append(",")
@@ -87,6 +88,7 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
                                 .append(String.valueOf(nowAge)).append(",")
                                 .append(dto.getGraduationTime()).append(",")
                                 .append(String.valueOf(i)).append(",")
+                                .append(dto.getEducation() != null ? dto.getEducation() : "").append(",")
                                 .append(String.valueOf(dto.getWorkExperience())).append(",")
                                 .append(dto.getDoubleEducation() ? "是" : "否").append(",")
                                 .append(String.valueOf(dto.getOcc())).append(",")
@@ -121,7 +123,7 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
     private void setLocalMap(String name) {
         Map map = threadLocal.get();
         if (map == null) {
-            threadLocal.set(new HashMap<String, List>());
+            threadLocal.set(new HashMap<String, List<String>>());
             map = threadLocal.get();
         }
         if (!map.containsKey(name)) {
@@ -130,11 +132,12 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
     }
 
     @Override
-    public void main(String path) {
-        Map<String, List<ResumeDto>> data = this.getMessage(path);
-//        this.saveData(data);
+    public void main(String path, Map<String, List<String>> screenJd, Boolean openDelete) {
+        threadLocal.set(screenJd);
+        Map<String, List<ResumeDto>> data = this.getMessage(path, openDelete);
         this.exportCsv(new File("C:/Users/master/Desktop/out/out" + System.currentTimeMillis() + ".csv")
                 , data);
+        threadLocal.remove();
     }
 
     private void saveData(Map<String, List<ResumeDto>> data) {
@@ -145,9 +148,10 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
      * 获取简历信息
      *
      * @param path
+     * @param openDelete
      * @return
      */
-    private Map<String, List<ResumeDto>> getMessage(String path) {
+    private Map<String, List<ResumeDto>> getMessage(String path, Boolean openDelete) {
         Map<String, Integer> resumeDtos = new HashMap<>();
         List<ResumeDto> dtos = new ArrayList<>();
         File file = new File(path);
@@ -161,9 +165,11 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
                 this.setSkillEffective(dto);
                 dtos.add(dto);
                 this.mapSet(resumeDtos, dto);
+                if ("不符合".equals(dto.getEvaluate()) && openDelete) {
+                    world.delete();
+                }
             }
         }
-
         //设置到每个简历上简历重复的数量
         this.setResumeOcc(resumeDtos, dtos);
         return this.packageMapData(dtos);
@@ -175,10 +181,17 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
      * @param dto
      */
     private void setSkillEffective(ResumeDto dto) {
-        if ("赵微".equals(dto.getGroup())) {
-            if (dto.getEffective().get("CS") != null && dto.getEffective().get("PY") != null) {
-                dto.setEvaluate("符合");
+        boolean flag = false;
+        for (Map.Entry<String, List<String>> entry : threadLocal.get().entrySet()) {
+            if (dto.getGroup().equals(entry.getKey())) {
+                flag = true;
+                if (dto.getEffective().get(entry.getKey()) != null && dto.getEffective().get(entry.getKey()) != null) {
+                    dto.setEvaluate("符合");
+                }
             }
+        }
+        if (StringUtils.isEmpty(dto.getEvaluate()) && flag) {
+            dto.setEvaluate("不符合");
         }
     }
 
@@ -244,7 +257,8 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
             } else if (filePath.endsWith(".docx")) {
                 this.readDocxContent(new XWPFDocument(is), dto);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
+            dto.setEvaluate("无效简历");
             e.printStackTrace();
         }
 
@@ -320,11 +334,21 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
                 }
                 dto.setGraduationTime(year);
             }
+            if (text.contains("本科")) {
+                dto.setEducation("本科");
+            } else if (text.contains("专科")) {
+                dto.setEducation("专科");
+            } else if (text.contains("高中")) {
+                dto.setEducation("高中");
+            } else if (text.contains("大专")) {
+                dto.setEducation("大专");
+            }
         }
         // 筛选技能用方法  临时
         this.setScreenSkill(fsDto, dto, text);
         this.setSeat(fsDto, text, i);
     }
+
 
     /**
      * 筛选技能用方法  临时
@@ -334,14 +358,20 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
      * @param text
      */
     private void setScreenSkill(FileSeatDto fsDto, ResumeDto dto, String text) {
-        if (fsDto.getSkillsNum() > 0 && "赵微".equals(dto.getGroup())) {
-            if (text.contains("测试用例") && dto.getEffective().get("CS") == null) {
-                dto.getEffective().put("CS", true);
-            }
-            if (text.toLowerCase().contains("python") && dto.getEffective().get("PY") == null) {
-                dto.getEffective().put("PY", true);
+        if (fsDto.getSkillsNum() > 0) {
+            Map<String, List<String>> map = threadLocal.get();
+            if (map.containsKey(dto.getGroup())) {
+                for (String screen : map.get(dto.getGroup())) {
+                    if (text.toLowerCase().contains(screen)) {
+                        fsDto.getCoincidenceDegree().add(screen);
+                    }
+                }
+                if (map.get(dto.getGroup()).size() == fsDto.getCoincidenceDegree().size()) {
+                    dto.getEffective().put(dto.getGroup(), true);
+                }
             }
         }
+
     }
 
 
@@ -436,7 +466,13 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
      * @param name 名字
      */
     private String getRealName(String name) {
-        return this.deleteSpace(name).split("-")[1];
+        String spcName = "";
+        try {
+            spcName = this.deleteSpace(name).split("-")[1];
+        } catch (Exception e) {
+            log.error(name + "格式错误", e);
+        }
+        return spcName;
     }
 
     @Override

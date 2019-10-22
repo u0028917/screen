@@ -1,5 +1,8 @@
 package com.seance.screen.dao;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * @author master
  */
@@ -45,6 +48,10 @@ public class FileSeatDto {
      * 项目经验
      */
     private boolean projectExperience = false;
+    /**
+     * 项目经历符合度
+     */
+    private Set<String> coincidenceDegree = new HashSet<>();
 
     public int getBaseInformationNum() {
         return baseInformationNum;
@@ -124,5 +131,13 @@ public class FileSeatDto {
 
     public void setProjectExperience(boolean projectExperience) {
         this.projectExperience = projectExperience;
+    }
+
+    public Set<String> getCoincidenceDegree() {
+        return coincidenceDegree;
+    }
+
+    public void setCoincidenceDegree(Set<String> coincidenceDegree) {
+        this.coincidenceDegree = coincidenceDegree;
     }
 }
