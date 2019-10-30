@@ -2,6 +2,7 @@ package com.seance.screen.web;
 
 import com.alibaba.fastjson.JSON;
 import com.seance.screen.dao.FileDto;
+import com.seance.screen.service.GetMailService;
 import com.seance.screen.service.RecordDuplicationService;
 import io.swagger.annotations.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,8 @@ import java.util.Map;
 public class TestController {
     @Autowired
     private RecordDuplicationService recordDuplicationService;
+    @Autowired
+    private GetMailService getMailService;
 
     @GetMapping("/test")
     @ApiOperation(value = "测试", notes = "测试")
@@ -41,5 +44,13 @@ public class TestController {
         Map<String, List<String>> screenJd = (Map<String, List<String>>) JSON.parse(screenJson);
         recordDuplicationService.main(screenPath,screenJd,openDelete);
     }
+
+
+    @GetMapping("/test2")
+    @ApiOperation(value = "测试2", notes = "测试2")
+    public void test2() {
+        getMailService.getMail();
+    }
+
 
 }
