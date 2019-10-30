@@ -1,6 +1,4 @@
-/**
- *  Copyright (c) 2018 EA
- */
+
 package com.seance.screen.common;
 
 /**
