@@ -37,8 +37,7 @@ public class GetMailServiceImpl implements GetMailService {
         // 创建IMAP协议的Store对象
         try (Store store = session.getStore("imap");) {
             // 连接邮件服务器
-//            store.connect("linqingqing@camelotchina.com", "linjiamei4");
-            store.connect("sunshaobo@camelotchina.com", "nba2012");
+            store.connect("sunshaobo@camelotchina.com", "*******");
             // 获得收件箱
             Folder folder = store.getFolder("INBOX");
             // 以读写模式打开收件箱
@@ -94,8 +93,7 @@ public class GetMailServiceImpl implements GetMailService {
         // 创建IMAP协议的Store对象
         Store store = session.getStore("imap");
         // 连接邮件服务器
-//        store.connect("linqingqing@camelotchina.com", "linjiamei4");
-        store.connect("sunshaobo@camelotchina.com", "nba2012");
+        store.connect("sunshaobo@camelotchina.com", "*******");
         // 获得收件箱
         Folder folder = store.getFolder("INBOX");
         // 以读写模式打开收件箱
