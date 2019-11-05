@@ -1,15 +1,24 @@
 package com.seance.screen.dao;
 
+import com.seance.screen.common.DateStyle;
+import com.seance.screen.common.DateUtils;
+import com.sun.mail.imap.IMAPBodyPart;
+import org.springframework.util.StringUtils;
+
 import javax.mail.BodyPart;
 import javax.mail.Multipart;
 import javax.mail.Part;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeUtility;
 import java.io.*;
+import java.util.*;
 
 public class MyMail {
 
+
     private MimeMessage mimeMessage = null;
+
+    private int length = 0;
 
     /**
      * 存放邮件内容的StringBuffer对象
@@ -21,6 +30,9 @@ public class MyMail {
      */
     private String group;
 
+    private Map<String, String> files;
+
+
     /**
      * 构造函数,初始化一个MimeMessage对象
      */
@@ -29,6 +41,28 @@ public class MyMail {
 
     public MyMail(MimeMessage mimeMessage) {
         this.mimeMessage = mimeMessage;
+    }
+
+    public String getGroup() {
+        return group;
+    }
+
+    public void setGroup(String group) {
+        this.group = group;
+    }
+
+    public Map<String, String> getFiles() {
+        return this.files;
+    }
+
+    public void addFiles(String name, String path) {
+        if (this.files != null) {
+            this.files.put(name, path);
+        } else {
+            this.files = new HashMap<>();
+            this.files.put(name, path);
+        }
+
     }
 
     /**
@@ -45,21 +79,16 @@ public class MyMail {
      */
 
     public void getMailContent(Part part) throws Exception {
-
+        if (length > 20) {
+            return;
+        }
         String contentType = part.getContentType();
         // 获得邮件的MimeType类型
-        System.out.println("邮件的MimeType类型: " + contentType);
-
         int nameIndex = contentType.indexOf("name");
-
         boolean conName = false;
-
         if (nameIndex != -1) {
             conName = true;
         }
-
-        System.out.println("邮件内容的类型:　" + contentType);
-
         if (part.isMimeType("text/plain") && conName == false) {
             // text/plain 类型
             bodyText.append((String) part.getContent());
@@ -71,10 +100,12 @@ public class MyMail {
             Multipart multipart = (Multipart) part.getContent();
             int counts = multipart.getCount();
             for (int i = 0; i < counts; i++) {
+                length++;
                 getMailContent(multipart.getBodyPart(i));
             }
         } else if (part.isMimeType("message/rfc822")) {
             // message/rfc822
+            length++;
             getMailContent((Part) part.getContent());
         }
     }
@@ -130,14 +161,20 @@ public class MyMail {
                     if (fileName.toLowerCase().indexOf("gb2312") != -1) {
                         fileName = MimeUtility.decodeText(fileName);
                     }
+                    if (fileName.toLowerCase().indexOf("utf-8") != -1) {
+                        fileName = MimeUtility.decodeText(fileName);
+                    }
                     saveFile(fileName, mPart.getInputStream());
                 } else if (mPart.isMimeType("multipart/*")) {
                     saveAttachMent(mPart);
                 } else {
                     fileName = mPart.getFileName();
-                    if ((fileName != null)
-                            && (fileName.toLowerCase().indexOf("GB2312") != -1)) {
-                        fileName = MimeUtility.decodeText(fileName);
+                    if ((fileName != null)) {
+                        if ((fileName.toLowerCase().indexOf("gb2312") != -1)) {
+                            fileName = MimeUtility.decodeText(fileName);
+                        } else if (fileName.toLowerCase().indexOf("utf-8") != -1) {
+                            fileName = MimeUtility.decodeText(fileName);
+                        }
                         saveFile(fileName, mPart.getInputStream());
                     }
                 }
@@ -153,30 +190,26 @@ public class MyMail {
     private void saveFile(String fileName, InputStream in) throws Exception {
         String osName = System.getProperty("os.name");
         String storeDir = null;
-        String separator = "";
+        String separator = File.separator;
         if (osName == null) {
             osName = "";
         }
         if (osName.toLowerCase().indexOf("win") != -1) {
-            separator = "\\";
-            if (storeDir == null || storeDir.equals("")) {
-                storeDir = "c:\\tmp";
-            }
+            storeDir = "c:\\tmp";
         } else {
-            separator = "/";
             storeDir = "/tmp";
         }
-        File storeFile = new File(storeDir + separator + fileName);
-        System.out.println("附件的保存地址:　" + storeFile.toString());
-        // for(int　i=0;storefile.exists();i++){
-        // storefile　=　new　File(storedir+separator+fileName+i);
-        // }
-        BufferedOutputStream bos = null;
-        BufferedInputStream bis = null;
-
-        try {
-            bos = new BufferedOutputStream(new FileOutputStream(storeFile));
-            bis = new BufferedInputStream(in);
+        String group = StringUtils.isEmpty(this.group) ? "空分组" : this.group;
+        String path = storeDir + separator
+                + DateUtils.DateToString(new Date(), DateStyle.YYYY_MM_DD) + separator
+                + group;
+        File groupFile = new File(path);
+        if (!groupFile.exists()) {
+            groupFile.mkdir();
+        }
+        File storeFile = new File(path + separator + fileName);
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(storeFile));
+             BufferedInputStream bis = new BufferedInputStream(in)) {
             int c;
             while ((c = bis.read()) != -1) {
                 bos.write(c);
@@ -184,11 +217,10 @@ public class MyMail {
             }
         } catch (Exception exception) {
             exception.printStackTrace();
-            throw new Exception("文件保存失败!");
-        } finally {
-            bos.close();
-            bis.close();
+            throw new IllegalArgumentException("文件保存失败!");
         }
+        this.addFiles(storeFile.getName(), storeFile.getPath());
+        System.out.println("=========" + storeFile.getName() + "下载完成");
     }
 
 
