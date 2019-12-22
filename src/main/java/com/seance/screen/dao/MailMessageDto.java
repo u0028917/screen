@@ -1,7 +1,9 @@
 package com.seance.screen.dao;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -53,6 +55,23 @@ public class MailMessageDto {
      */
     private String enclosure;
 
+    private String subject;
+
+    private Boolean isEffective;
+
+    private List<String> groups;
+
+    private Map<String, String> files;
+
+    private String count;
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
 
     public String getGroup() {
         return group;
@@ -141,5 +160,43 @@ public class MailMessageDto {
 
     public void setRepeat(String repeat) {
         this.repeat = repeat;
+    }
+
+    public void addGroups(String group) {
+        if (this.groups == null) {
+            this.groups = new ArrayList<>();
+        }
+        this.groups.add(group);
+    }
+
+    public List<String> getGroups() {
+        return this.groups;
+    }
+
+    public Boolean getEffective() {
+        return isEffective;
+    }
+
+    public void setEffective(Boolean effective) {
+        isEffective = effective;
+    }
+
+    public String getCount() {
+        return count;
+    }
+
+    public void setCount(String count) {
+        this.count = count;
+    }
+
+    public Map<String, String> getFiles() {
+        return this.files;
+    }
+
+    public void addFiles(String name, String path) {
+        if (this.files == null) {
+            this.files = new HashMap<>();
+        }
+        this.files.put(name, path);
     }
 }

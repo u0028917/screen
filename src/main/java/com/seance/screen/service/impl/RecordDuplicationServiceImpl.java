@@ -49,6 +49,43 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
         threadLocal.remove();
     }
 
+    private void exportMuBan(File file, List<ResumeDto> dataList) {
+        try (FileOutputStream out = new FileOutputStream(file);
+             OutputStreamWriter osw = new OutputStreamWriter(out, "gbk");
+             BufferedWriter bw = new BufferedWriter(osw)) {
+            bw.append("姓名").append(",")
+                    .append("身份证号").append(",")
+                    .append("学历").append(",")
+                    .append("毕业院校").append(",")
+                    .append("所学专业").append(",")
+                    .append("联系方式").append(",")
+                    .append("候选人来源").append(",")
+                    .append("岗位职级").append(",")
+                    .append("推送反馈").append(",")
+                    .append("员工类型").append(",")
+                    .append("服务模式").append(",")
+                    .append("毕业时间").append("\r");
+            if (dataList != null && !dataList.isEmpty()) {
+                for (ResumeDto dto : dataList) {
+                    bw.append(dto.getName()).append(",")
+                            .append("").append(",")
+                            .append(dto.getEducation() != null ? dto.getEducation() : "").append(",")
+                            .append("").append(",")
+                            .append("").append(",")
+                            .append(dto.getPhone() != null ? dto.getPhone() : "").append(",")
+                            .append("社招").append(",")
+                            .append("").append(",")
+                            .append("优质").append(",")
+                            .append("正式").append(",")
+                            .append("驻场").append(",")
+                            .append(dto.getGraduationTime() != null ? dto.getGraduationTime() : "").append("\r");
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     private void exportCsv(File file, Map<String, List<ResumeDto>> dataMap) {
         try (FileOutputStream out = new FileOutputStream(file);
@@ -137,6 +174,12 @@ public class RecordDuplicationServiceImpl implements RecordDuplicationService {
         Map<String, List<ResumeDto>> data = this.getMessage(path, openDelete);
         this.exportCsv(new File("C:/Users/master/Desktop/out/out" + System.currentTimeMillis() + ".csv")
                 , data);
+        if (data != null && !data.isEmpty()) {
+            for (Map.Entry<String, List<ResumeDto>> entry : data.entrySet()) {
+//                this.exportMuBan(new File("C:/Users/master/Desktop/out/" + entry.getKey() + "==" + System.currentTimeMillis() + ".csv")
+//                        , entry.getValue());
+            }
+        }
         threadLocal.remove();
     }
 

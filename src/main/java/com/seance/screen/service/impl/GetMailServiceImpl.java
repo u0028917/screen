@@ -7,10 +7,6 @@ import com.seance.screen.dao.MyMail;
 import com.seance.screen.service.GetMailService;
 import com.seance.screen.util.redis.RedisService;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -39,6 +35,7 @@ public class GetMailServiceImpl implements GetMailService {
     public void getMail() {
         System.out.println("-------------开始时间-----------" + System.currentTimeMillis());
         Map<String, MailMessageDto> outData = new HashMap<>();
+        List<MailMessageDto> messageDtos = new ArrayList<>();
         List<String> errorMsg = new ArrayList<>();
         String storeDir = "C:" + File.separator + "tmp";
         File file = new File(storeDir);
@@ -97,12 +94,15 @@ public class GetMailServiceImpl implements GetMailService {
                 MyMail mm = new MyMail((MimeMessage) message);
                 try {
                     long time = System.currentTimeMillis();
-                    mm.getMailContent((Part) message);
+//                    this.handleEnclosure(mm,(Part) message);
+//                    mm.getMailContent((Part) message);
+                    mm.writePart((Part) message);
+                    messageDtos.add(mm.getMailMessageDto());
                     long time2 = System.currentTimeMillis();
                     System.out.println(time2 - time);
-                    boolean flag = this.handleMail(mm, outData, (Part) message);
+//                    boolean flag = this.handleMail(mm, outData, (Part) message);
                     System.out.println(System.currentTimeMillis() - time2);
-                } catch (Exception e) {
+                }catch (Exception e) {
                     log.error(e.getMessage(), e);
                     errorMsg.add(subjectName + "," + DateUtils.DateToString(message.getReceivedDate(), DateStyle.YYYY_MM_DD_HH_MM_SS));
                     continue;
@@ -112,6 +112,7 @@ public class GetMailServiceImpl implements GetMailService {
                 }
             }
             folder.close();
+            System.out.println(messageDtos.size());
             redisService.set(redisKey, DateUtils.DateToString(saveDate, DateStyle.YYYY_MM_DD_HH_MM_SS));
         } catch (MessagingException e) {
             e.printStackTrace();
@@ -121,10 +122,6 @@ public class GetMailServiceImpl implements GetMailService {
             this.outErrorExcel(errorMsg);
         }
         System.out.println("===============结束==============" + System.currentTimeMillis());
-    }
-
-    private void openMail() {
-
     }
 
     private void outErrorExcel(List<String> errorMsg) {
@@ -179,106 +176,6 @@ public class GetMailServiceImpl implements GetMailService {
         }
     }
 
-    private void handleGroup(MailMessageDto messageDto, MyMail myMail, Part message, Map<String, MailMessageDto> outData) {
-        String regEx = "[`~!@#$%^&*()+=|{}':;',\\[\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、 ？]";
-        String[] split = messageDto.getGroup().split(regEx);
-        List<String> group = new ArrayList<>();
-        for (String s : split) {
-            if (!StringUtils.isEmpty(s)) {
-                group.add(s);
-            }
-        }
-        myMail.setGroup("我的临时文件夹");
-        this.handleEnclosure(myMail, message, messageDto);
-        if (group.size() > 0) {
-            for (String g : group) {
-                System.out.println("=======分组运行=======" + g);
-                messageDto.setGroup(g);
-                //设置分组
-                String key = messageDto.getName() + messageDto.getPhone() + g;
-                String value = DateUtils.DateToString(new Date(), DateStyle.YYYY_MM_DD);
-                Object obj = redisService.get(key);
-                String path = "C:" + File.separator + "tmp" + File.separator
-                        + DateUtils.DateToString(new Date(), DateStyle.YYYY_MM_DD) + File.separator
-                        + g;
-                File groupFile = new File(path);
-                if (!groupFile.exists()) {
-                    groupFile.mkdir();
-                }
-                if (obj != null) {
-                    outData.get(key).setRepeat("重复");
-                } else {
-                    System.out.println("====等待复制");
-                    if (outData.containsKey(key)) {
-                        if (outData.get(key).getHr().equals(messageDto.getHr())) {
-                            outData.put(key, messageDto);
-                            if (myMail.getFiles() != null && myMail.getFiles().size() > 0) {
-                                for (Map.Entry<String, String> entry : myMail.getFiles().entrySet()) {
-                                    //处理附件
-                                    this.copyFile(entry.getValue(), path + File.separator + entry.getKey(), messageDto);
-                                }
-                            }
-                        } else {
-                            outData.get(key).setRepeat("重复");
-                        }
-                    } else {
-                        outData.put(key, messageDto);
-                        if (myMail.getFiles() != null && myMail.getFiles().size() > 0) {
-                            for (Map.Entry<String, String> entry : myMail.getFiles().entrySet()) {
-                                //处理附件
-                                this.copyFile(entry.getValue(), path + File.separator + entry.getKey(), messageDto);
-                            }
-                        }
-                    }
-                    redisService.set(repeat + key, value);
-                    System.out.println("复制结束=========");
-                }
-            }
-        } else {
-            String path = "C:" + File.separator + "tmp" + File.separator
-                    + DateUtils.DateToString(new Date(), DateStyle.YYYY_MM_DD) + File.separator
-                    + "空分组" + File.separator;
-            for (Map.Entry<String, String> entry : myMail.getFiles().entrySet()) {
-                //处理附件
-                this.copyFile(entry.getValue(), path + entry.getKey(), messageDto);
-            }
-        }
-    }
-
-    private boolean handleMail(MyMail myMail, Map<String, MailMessageDto> outData, Part message) {
-        Document doc = Jsoup.parse(myMail.getBodyText());
-        if (doc.select("table").isEmpty()) {
-            return false;
-        }
-        Element table = doc.select("table").get(0);
-        if (table == null) {
-            return false;
-        }
-        Elements rows = table.select("tr");
-        if (rows.isEmpty() || rows.get(0) == null) {
-            return false;
-        }
-        if (rows.get(0).select("td").isEmpty() || rows.get(0).select("td").get(0) == null) {
-            return false;
-        }
-        if (!"组别".equals(rows.get(0).select("td").get(0).text())) {
-            return false;
-        }
-        if (rows.get(1) == null) {
-            return false;
-        }
-        Elements cols = rows.get(1).select("td");
-        if (cols.isEmpty()) {
-            return false;
-        }
-        MailMessageDto messageDto = this.copyMessage(cols);
-        String key = messageDto.getName() + messageDto.getPhone();
-        //设置分组
-        myMail.setGroup(messageDto.getGroup());
-        this.handleGroup(messageDto, myMail, message, outData);
-        return true;
-    }
-
     private void copyFile(String path, String s, MailMessageDto messageDto) {
         if (!StringUtils.isEmpty(path)) {
             try {
@@ -292,12 +189,12 @@ public class GetMailServiceImpl implements GetMailService {
     }
 
 
-    private void handleEnclosure(MyMail myMail, Part message, MailMessageDto messageDto) {
+    private void handleEnclosure(MyMail myMail, Part message) {
         boolean flag = false;
         try {
             flag = myMail.isContainAttach(message);
         } catch (Exception e) {
-            messageDto.setEnclosure("读取附件发生未知错误");
+            myMail.getMailMessageDto().setEnclosure("读取附件发生未知错误");
         }
         if (flag) {
             try {
@@ -305,29 +202,16 @@ public class GetMailServiceImpl implements GetMailService {
                 //保存文件
                 myMail.saveAttachMent(message);
             } catch (IllegalArgumentException e) {
-                messageDto.setEnclosure("附件下载错误");
+                myMail.getMailMessageDto().setEnclosure("附件下载错误");
             } catch (Exception e) {
-                messageDto.setEnclosure("附件下载错误");
+                myMail.getMailMessageDto().setEnclosure("附件下载错误");
             }
-        } else if (StringUtils.isEmpty(messageDto.getEnclosure())) {
-            messageDto.setEnclosure("附件为空");
+        } else if (StringUtils.isEmpty(myMail.getMailMessageDto().getEnclosure())) {
+            myMail.getMailMessageDto().setEnclosure("附件为空");
         }
 
     }
 
-    private MailMessageDto copyMessage(Elements cols) {
-        MailMessageDto messageDto = new MailMessageDto();
-        messageDto.setGroup(this.handleNull(cols.get(0).text()));
-        messageDto.setName(this.handleNull(cols.get(1).text()));
-        messageDto.setYears(this.handleNull(cols.get(2).text()));
-        messageDto.setPost(this.handleNull(cols.get(3).text()));
-        messageDto.setSalaryNow(this.handleNull(cols.get(4).text()));
-        messageDto.setSalaryExpectation(this.handleNull(cols.get(5).text()));
-        messageDto.setExpectedArrivalTime(this.handleNull(cols.get(6).text()));
-        messageDto.setHr(this.handleNull(cols.get(7).text()));
-        messageDto.setPhone(this.handleNull(cols.get(8).text()));
-        return messageDto;
-    }
 
     private String handleNull(String str) {
         return str != null ? str.trim() : "";
