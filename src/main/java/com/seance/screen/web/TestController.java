@@ -46,10 +46,14 @@ public class TestController {
     }
 
 
-    @GetMapping("/test2")
-    @ApiOperation(value = "测试2", notes = "测试2")
-    public void test2() {
-        getMailService.getMail();
+    @PostMapping("/getMail")
+    @ApiOperation(value = "获取邮件列表", notes = "获取邮件列表")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "emailName",value = "邮箱账号",required = true, paramType = "query", dataType = "String"),
+            @ApiImplicitParam(name = "passWord",value = "密码",required = true, paramType = "query", dataType = "string"),
+    })
+    public void test2(String emailName, String passWord) {
+        getMailService.getMail(emailName,passWord);
     }
 
 
