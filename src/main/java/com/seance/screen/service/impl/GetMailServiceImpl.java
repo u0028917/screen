@@ -247,7 +247,7 @@ public class GetMailServiceImpl implements GetMailService {
                 for (EasyEntryDto outDatum : outData) {
                     name = "";
                     subjectName = outDatum.getValue();
-                    if (subjectName.contains("【")) {
+                    if (subjectName.contains("【") && subjectName.contains("】")) {
                         name = subjectName.substring(subjectName.indexOf("【") + 1, subjectName.indexOf("】"));
                     }
                     bw.append(StringUtils.isEmpty(outDatum.getName()) ? outDatum.getKey() : outDatum.getName()).append(",")

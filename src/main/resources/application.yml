@@ -2,7 +2,7 @@
 # Server 配置
 # ============
 server:
-  port: 8000
+  port: 8001
   servlet:
     context-path: /resume/web
 
