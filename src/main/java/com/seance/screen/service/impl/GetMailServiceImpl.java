@@ -15,6 +15,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import javax.mail.*;
@@ -22,10 +23,12 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.mail.search.ReceivedDateTerm;
 import javax.mail.search.SearchTerm;
+import java.awt.*;
 import java.io.*;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -40,7 +43,7 @@ public class GetMailServiceImpl implements GetMailService {
 
 
     @Override
-    public void getMail(String emailName, String passWord) {
+    public void getMail(String emailName, String passWord,String typeName) {
         System.out.println("-------------开始时间-----------" + System.currentTimeMillis());
         List<EasyEntryDto> outData = new ArrayList();
         List<String> errorMsg = new ArrayList<>();
@@ -70,7 +73,11 @@ public class GetMailServiceImpl implements GetMailService {
 //            store.connect("sunshaobo@camelotchina.com", "nba2012");
             System.out.println("------------打开邮件---------" + System.currentTimeMillis());
             // 获得收件箱
-            Folder folder = store.getFolder("INBOX");
+            String fold = "INBOX";
+            if (emailName.contains("sunshaobo") && "百度".equals(typeName)) fold = "百度IDG";
+            Folder folder = store.getFolder(fold);
+//            Folder defaultFolder = store.getDefaultFolder();
+//            Folder[] allFolder = defaultFolder.list();
             // 以读写模式打开收件箱
             folder.open(Folder.READ_ONLY);
             SearchTerm st = new ReceivedDateTerm(6, oneDate);
@@ -85,7 +92,8 @@ public class GetMailServiceImpl implements GetMailService {
                 Message message = messages[i];
                 if (message.getReceivedDate().after(oneDate)) {
                     String subjectName = message.getSubject();
-                    if (subjectName.replace(" ", "").contains("快手") && !subjectName.contains("回复") && !subjectName.toLowerCase().contains("re")) {
+                    if (subjectName.replace(" ", "").contains(typeName) && !subjectName.contains("答复")
+                            && !subjectName.contains("回复") && !subjectName.toLowerCase().contains("re")) {
                         emailCont++;
                         Address[] from = message.getFrom();
                         String addressFrom = InternetAddress.toString(from);
@@ -100,6 +108,7 @@ public class GetMailServiceImpl implements GetMailService {
                         EasyEntryDto entryDto = new EasyEntryDto();
                         entryDto.setKey(addressFrom);
                         entryDto.setValue(subjectName);
+                        entryDto.setDateTime(DateUtils.DateToString(message.getReceivedDate(),"yyyy-MM-dd HH:mm:ss"));
                         outData.add(entryDto);
                         System.out.println("========开始第-----------------" + i + "封邮件===========" + subjectName);
                         if (message.getReceivedDate().after(saveDate)) {
@@ -110,15 +119,19 @@ public class GetMailServiceImpl implements GetMailService {
             }
             folder.close();
             this.setgetBeginTime(storeDir, saveDate);
-            System.out.println("带快手标题简历不算回复邮件总归："+emailCont+"封邮件");
+            System.out.println("带"+typeName+"标题简历不算回复邮件总计："+emailCont+"封邮件");
         } catch (MessagingException e) {
             e.printStackTrace();
         }
-        this.outPrintExcel(outData);
+        this.outPrintExcel(outData,typeName);
         if (errorMsg.size() > 0) {
             this.outErrorExcel(errorMsg);
         }
         System.out.println("===============结束==============" + System.currentTimeMillis());
+        try {
+            Runtime.getRuntime().exec("cmd /c start C:/tmp");
+        } catch (IOException e) {
+        }
     }
 
     private void setgetBeginTime(String storeDir, Date saveDate) {
@@ -200,7 +213,7 @@ public class GetMailServiceImpl implements GetMailService {
     }
 
 
-    private List<EasyEntryDto> getHandleData(List<EasyEntryDto> outData) throws Exception {
+    private List<EasyEntryDto> getHandleData(List<EasyEntryDto> outData,String typename) throws Exception {
         Workbook wb = null;
         String path = "C:" + File.separator + "tmp" + File.separator + "nameCode.xlsx";
         File file = new File(path);
@@ -212,25 +225,44 @@ public class GetMailServiceImpl implements GetMailService {
         while (var8.hasNext()) {
             Row row = (Row) var8.next();
             if (row.getRowNum() > 0) {
-                nameMap.put(row.getCell(0).toString(), row.getCell(1).toString());
+                if("快手".equals(typename)){
+                    nameMap.put(row.getCell(0).toString(), row.getCell(1).toString());
+                }else if ("百度".equals(typename)){
+                    String name= row.getCell(1).toString();
+                    if (!ObjectUtils.isEmpty(row.getCell(2))){
+                        name = name + "-_-" + row.getCell(2);
+                    }
+                    nameMap.put(row.getCell(0).toString(), name);
+                }
+
             }
         }
         for (EasyEntryDto outDatum : outData) {
-            String key = outDatum.getKey();
-            if (nameMap.containsKey(key)) {
-                outDatum.setName(nameMap.get(key));
+            if (nameMap.containsKey(outDatum.getKey())) {
+                if ("快手".equals(typename)){
+                    outDatum.setName(nameMap.get(outDatum.getKey()));
+                }else if ("百度".equals(typename)){
+                    String name = nameMap.get(outDatum.getKey());
+                    String team = "";
+                    if (name.contains("-_-")){
+                        team = name.split("-_-")[1];
+                        name = name.split("-_-")[0];
+                    }
+                    outDatum.setName(name);
+                    outDatum.setTeam(team);
+                }
             }
         }
         return outData;
     }
 
 
-    private void outPrintExcel(List<EasyEntryDto> outData) {
-        String path = "C:" + File.separator + "tmp" + File.separator + System.currentTimeMillis() + ".csv";
+    private void outPrintExcel(List<EasyEntryDto> outData,String typeName) {
+        String path = "C:" + File.separator + "tmp" + File.separator + DateUtils.stampToDate(System.currentTimeMillis()) + ".csv";
         File file = new File(path);
 
         try {
-            this.getHandleData(outData);
+            this.getHandleData(outData,typeName);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -238,22 +270,65 @@ public class GetMailServiceImpl implements GetMailService {
         try (FileOutputStream out = new FileOutputStream(file);
              OutputStreamWriter osw = new OutputStreamWriter(out, "gbk");
              BufferedWriter bw = new BufferedWriter(osw)) {
-            bw.append("HR").append(",")
-                    .append("候选人").append(",")
-                    .append("主题").append("\r");
+            if ("快手".equals(typeName)){
+                bw.append("HR").append(",")
+                        .append("候选人").append(",")
+                        .append("主题").append("\r");
+            }else if("百度".equals(typeName)){
+                bw.append("团队").append(",")
+                        .append("HR").append(",")
+                        .append("候选人").append(",")
+                        .append("职位").append(",")
+                        .append("区域").append(",")
+                        .append("推荐时间").append(",")
+                        .append("主题").append("\r");
+            }
             String subjectName;
-            String name;
+            String name,post,area;
             if (!CollectionUtils.isEmpty(outData)) {
-                for (EasyEntryDto outDatum : outData) {
-                    name = "";
-                    subjectName = outDatum.getValue();
-                    if (subjectName.contains("【") && subjectName.contains("】")) {
-                        name = subjectName.substring(subjectName.indexOf("【") + 1, subjectName.indexOf("】"));
+                if ("快手".equals(typeName)){
+                    for (EasyEntryDto outDatum : outData) {
+                        name = "";
+                        subjectName = outDatum.getValue();
+                        if (subjectName.contains("【") && subjectName.contains("】")) {
+                            name = subjectName.substring(subjectName.indexOf("【") + 1, subjectName.indexOf("】"));
+                        }
+                        bw.append(StringUtils.isEmpty(outDatum.getName()) ? outDatum.getKey() : outDatum.getName()).append(",")
+                                .append(name).append(",")
+                                .append(subjectName).append("\r");
                     }
-                    bw.append(StringUtils.isEmpty(outDatum.getName()) ? outDatum.getKey() : outDatum.getName()).append(",")
-                            .append(name).append(",")
-                            .append(subjectName).append("\r");
+                }else if("百度".equals(typeName)){
+                    for (EasyEntryDto outDatum : outData) {
+                        name = "";
+                        post = "";
+                        area = "";
+                        subjectName = outDatum.getValue();
+                        if (subjectName.contains("_")) {
+                            String[] subName = subjectName.split("_");
+                            for (int i = 0; i < subName.length; i++) {
+                                switch (i){
+                                    case 1:
+                                        post = subName[i];
+                                        break;
+                                    case 2:
+                                        name = subName[i];
+                                        break;
+                                    case 3:
+                                        area = subName[i];
+                                        break;
+                                }
+                            }
+                        }
+                        bw.append(StringUtils.isEmpty(outDatum.getTeam()) ? "" : outDatum.getTeam()).append(",")
+                                .append(StringUtils.isEmpty(outDatum.getName()) ? outDatum.getKey() : outDatum.getName()).append(",")
+                                .append(name).append(",")
+                                .append(post).append(",")
+                                .append(area).append(",")
+                                .append(outDatum.getDateTime()).append(",")
+                                .append(subjectName).append("\r");
+                    }
                 }
+
             }
         } catch (IOException e) {
             e.printStackTrace();

@@ -1042,6 +1042,16 @@ public class DateUtils {
     return cal.getTime();
   }
 
+  /*
+   * 将时间戳转换为时间
+   */
+  public static String stampToDate(long time){
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
+    String time_Date = sdf.format(new Date(time));
+    return time_Date;
+
+  }
+
   /**
    * Discription:[获取指定月的最后一天的日期]
    *

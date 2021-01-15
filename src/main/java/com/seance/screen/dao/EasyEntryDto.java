@@ -4,6 +4,24 @@ public class EasyEntryDto {
     private String key;
     private String value;
     private String name;
+    private String dateTime;
+    private String team;
+
+    public String getTeam() {
+        return team;
+    }
+
+    public void setTeam(String team) {
+        this.team = team;
+    }
+
+    public String getDateTime() {
+        return dateTime;
+    }
+
+    public void setDateTime(String dateTime) {
+        this.dateTime = dateTime;
+    }
 
     public EasyEntryDto() {
     }

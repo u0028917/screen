@@ -51,9 +51,10 @@ public class TestController {
     @ApiImplicitParams({
             @ApiImplicitParam(name = "emailName",value = "邮箱账号",required = true, paramType = "query", dataType = "String"),
             @ApiImplicitParam(name = "passWord",value = "密码",required = true, paramType = "query", dataType = "string"),
+            @ApiImplicitParam(name = "typeName",value = "简历主题筛选关键字",required = true, paramType = "query", dataType = "string",allowableValues="快手,百度"),
     })
-    public void test2(String emailName, String passWord) {
-        getMailService.getMail(emailName,passWord);
+    public void test2(String emailName, String passWord,String typeName) {
+        getMailService.getMail(emailName,passWord,typeName);
     }
 
 
