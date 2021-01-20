@@ -93,7 +93,7 @@ public class GetMailServiceImpl implements GetMailService {
                 if (message.getReceivedDate().after(oneDate)) {
                     String subjectName = message.getSubject();
                     if (subjectName.replace(" ", "").contains(typeName) && !subjectName.contains("答复")
-                            && !subjectName.contains("回复") && !subjectName.toLowerCase().contains("re")) {
+                            && !subjectName.contains("回复") && !subjectName.toLowerCase().contains("re")&& !subjectName.toLowerCase().contains("fw")) {
                         emailCont++;
                         Address[] from = message.getFrom();
                         String addressFrom = InternetAddress.toString(from);
