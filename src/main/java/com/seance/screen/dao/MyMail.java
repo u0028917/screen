@@ -37,6 +37,8 @@ public class MyMail {
 
     private MailMessageDto mailMessageDto;
 
+    private boolean handled;
+
 
     /**
      * 构造函数,初始化一个MimeMessage对象
@@ -55,6 +57,7 @@ public class MyMail {
     public MyMail(MimeMessage mimeMessage) {
         this.mimeMessage = mimeMessage;
         this.mailMessageDto = new MailMessageDto();
+        this.handled = false;
         try {
             this.mailMessageDto.setSubject(mimeMessage.getSubject());
         } catch (MessagingException e) {
@@ -84,6 +87,9 @@ public class MyMail {
      */
 
     public void getMailContent(Part part) throws Exception {
+        if (this.handled) {
+            return;
+        }
         // 获得邮件的MimeType类型
         boolean conName = part.getContentType().indexOf("name") > 0;
         if (part.isMimeType("text/plain") && !conName) {
@@ -96,8 +102,9 @@ public class MyMail {
                 this.handleHtml();
             } catch (Exception e) {
                 this.handleText();
+            } finally {
+                return;
             }
-            System.out.println("============获取内容循环===" + length + "次========");
         } else if (part.isMimeType("message/rfc822")) {
             length++;
             System.out.println("==============获取" + length + "=========");
@@ -112,8 +119,6 @@ public class MyMail {
                 getMailContent(bodyPart);
             }
         }
-        System.out.println(part.getContentType());
-        System.out.println(part.getContent());
     }
 
     public void parseMultipart(Part part) throws MessagingException, IOException {
@@ -131,7 +136,6 @@ public class MyMail {
                 System.out.println("==========获取内容==" + length + "次");
                 parseMultipart((Part) bodyPart.getContent());
             }
-            System.out.println(bodyText.toString());
         }
     }
 
@@ -235,8 +239,7 @@ public class MyMail {
             storeDir = "/tmp";
         }
         String path = storeDir + separator
-                + DateUtils.DateToString(new Date(), DateStyle.YYYY_MM_DD) + separator
-                + "我的临时文件夹";
+                + DateUtils.DateToString(new Date(), DateStyle.YYYY_MM_DD);
         File groupFile = new File(path);
         if (!groupFile.exists()) {
             groupFile.mkdir();
@@ -259,7 +262,6 @@ public class MyMail {
 
     private void handleText() {
         this.mailMessageDto.setEffective(false);
-        System.out.println(this.getBodyText());
         this.mailMessageDto.setCount(this.getBodyText());
     }
 
@@ -269,42 +271,80 @@ public class MyMail {
         if (doc.select("table").isEmpty()) {
             return;
         }
-        Element table = doc.select("table").get(0);
-        if (table == null) {
-            return;
+
+        for (Element table : doc.select("table")) {
+            if (table == null) continue;
+            Elements rows = table.select("tr");
+            if (rows.isEmpty()) continue;
+            for (Element row : rows) {
+                if (row.select("td").isEmpty()) continue;
+                for (Element td : row.select("td")) {
+
+                }
+            }
+
         }
-        Elements rows = table.select("tr");
-        if (rows.isEmpty() || rows.get(0) == null) {
-            return;
+        int lenT = doc.select("table").size();
+        table:
+        for (int i = 0; i < lenT; i++) {
+            Element table = doc.select("table").get(i);
+            if (table == null) continue;
+            Elements rows = table.select("tr");
+            if (rows.isEmpty()) continue;
+            int lenR = rows.size();
+            int c = 999;
+            rows:
+            for (int j = 0; j < lenR; j++) {
+                if (rows.get(j).select("td").isEmpty()) continue;
+                if (c == j) {
+                    this.copyMessage(rows.get(j).select("td"));
+                    this.mailMessageDto.setEffective(true);
+                    break table;
+                }
+                col:
+                for (Element td : rows.get(j).select("td")) {
+                    if (td.text() != null && td.text() != "" && td.text().contains("时间")) {
+                        c = j + 1;
+                        break col;
+                    }
+                }
+            }
         }
-        if (rows.get(0).select("td").isEmpty() || rows.get(0).select("td").get(0) == null) {
-            return;
-        }
-        if (!"组别".equals(rows.get(0).select("td").get(0).text())) {
-            return;
-        }
-        if (rows.get(1) == null) {
-            return;
-        }
-        Elements cols = rows.get(1).select("td");
-        if (cols.isEmpty()) {
-            return;
-        }
-        this.mailMessageDto.setEffective(true);
-        this.copyMessage(cols);
+//
+//        Element table = doc.select("table").get(0);
+//        if (table == null) {
+//            return;
+//        }
+//        Elements rows = table.select("tr");
+//        if (rows.isEmpty() || rows.get(0) == null) {
+//            return;
+//        }
+//        if (rows.get(0).select("td").isEmpty() || rows.get(0).select("td").get(0) == null) {
+//            return;
+//        }
+//        if (rows.get(1) == null) {
+//            return;
+//        }
+//        Elements cols = rows.get(1).select("td");
+//        if (cols.isEmpty()) {
+//            return;
+//        }
+//        this.mailMessageDto.setEffective(true);
+//        this.copyMessage(cols);
     }
 
     private void copyMessage(Elements cols) {
-        this.group = this.handleNull(cols.get(0).text());
-        this.handleGroups();
-        this.mailMessageDto.setName(this.handleNull(cols.get(1).text()));
-        this.mailMessageDto.setYears(this.handleNull(cols.get(2).text()));
-        this.mailMessageDto.setPost(this.handleNull(cols.get(3).text()));
-        this.mailMessageDto.setSalaryNow(this.handleNull(cols.get(4).text()));
-        this.mailMessageDto.setSalaryExpectation(this.handleNull(cols.get(5).text()));
-        this.mailMessageDto.setExpectedArrivalTime(this.handleNull(cols.get(6).text()));
-        this.mailMessageDto.setHr(this.handleNull(cols.get(7).text()));
-        this.mailMessageDto.setPhone(this.handleNull(cols.get(8).text()));
+        this.mailMessageDto.setPushTime(this.handleNull(cols.get(0).text()));
+        this.mailMessageDto.setPhone(this.handleNull(cols.get(1).text()));
+        this.mailMessageDto.setSalaryExpectation(this.handleNull(cols.get(2).text()));
+        this.mailMessageDto.setName(this.handleNull(cols.get(3).text()));
+        this.mailMessageDto.setSex(this.handleNull(cols.get(4).text()));
+        this.mailMessageDto.setYears(this.handleNull(cols.get(5).text()));
+        this.mailMessageDto.setPost(this.handleNull(cols.get(6).text()));
+        this.mailMessageDto.setSalaryNow(this.handleNull(cols.get(7).text()));
+        this.mailMessageDto.setExpectedArrivalTime(this.handleNull(cols.get(8).text()));
+        this.mailMessageDto.setHr(this.handleNull(cols.get(9).text()));
+        this.mailMessageDto.setSubject(this.handleNull(cols.get(10).text()));
     }
 
     private void handleGroups() {
@@ -368,9 +408,6 @@ public class MyMail {
         } else if (p.getContentType().contains("image/")) {
             System.out.println("--------> image/jpeg");
         } else if (p.isMimeType("text/html")) {
-            System.out.println(p.getClass());
-            System.out.println(p.getSize());
-            System.out.println(p.getLineCount());
             System.out.println("getContent开始");
             final Object[] o = {""};
             final boolean[] flag = {true, true};

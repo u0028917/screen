@@ -46,6 +46,7 @@ public class GetMailServiceImpl implements GetMailService {
     public void getMail(String emailName, String passWord,String typeName) {
         System.out.println("-------------开始时间-----------" + System.currentTimeMillis());
         List<EasyEntryDto> outData = new ArrayList();
+        List<MailMessageDto> messageDtos = new ArrayList<>();
         List<String> errorMsg = new ArrayList<>();
         String storeDir = "C:" + File.separator + "tmp";
         File file = new File(storeDir);
@@ -75,6 +76,7 @@ public class GetMailServiceImpl implements GetMailService {
             // 获得收件箱
             String fold = "INBOX";
             if (emailName.contains("sunshaobo") && "百度".equals(typeName)) fold = "百度IDG";
+            if (emailName.contains("chentingting") && "小米".equals(typeName)) fold = "小米";
             Folder folder = store.getFolder(fold);
 //            Folder defaultFolder = store.getDefaultFolder();
 //            Folder[] allFolder = defaultFolder.list();
@@ -92,8 +94,13 @@ public class GetMailServiceImpl implements GetMailService {
                 Message message = messages[i];
                 if (message.getReceivedDate().after(oneDate)) {
                     String subjectName = message.getSubject();
-                    if (subjectName.replace(" ", "").contains(typeName) && !subjectName.contains("答复")
-                            && !subjectName.contains("回复") && !subjectName.toLowerCase().contains("re")&& !subjectName.toLowerCase().contains("fw")) {
+                    boolean flag = true;
+                    if("小米".equals(typeName) && !subjectName.contains("北京")){
+                        flag = false;
+                    }
+                    if (flag && subjectName.replace(" ", "").contains(typeName) && !subjectName.contains("答复")
+                            && !subjectName.contains("回复") && !subjectName.toLowerCase().contains("re")&& !subjectName.toLowerCase().contains("fw")
+                        ) {
                         emailCont++;
                         Address[] from = message.getFrom();
                         String addressFrom = InternetAddress.toString(from);
@@ -111,6 +118,24 @@ public class GetMailServiceImpl implements GetMailService {
                         entryDto.setDateTime(DateUtils.DateToString(message.getReceivedDate(),"yyyy-MM-dd HH:mm:ss"));
                         outData.add(entryDto);
                         System.out.println("========开始第-----------------" + i + "封邮件===========" + subjectName);
+                       if("小米".equals(typeName)){
+                            MyMail mm = new MyMail((MimeMessage) message);
+                            try {
+                                long time = System.currentTimeMillis();
+                                this.handleEnclosure(mm,(Part) message);
+//                                mm.getMailContent((Part) message);
+                                mm.writePart((Part) message);
+                                messageDtos.add(mm.getMailMessageDto());
+                                long time2 = System.currentTimeMillis();
+                                System.out.println(time2 - time);
+                                System.out.println(System.currentTimeMillis() - time2);
+                            }catch (Exception e) {
+                                log.error(e.getMessage(), e);
+                                errorMsg.add(subjectName + "," + DateUtils.DateToString(message.getReceivedDate(), DateStyle.YYYY_MM_DD_HH_MM_SS));
+                                continue;
+                            }
+                        }
+
                         if (message.getReceivedDate().after(saveDate)) {
                             saveDate = message.getReceivedDate();
                         }
@@ -124,6 +149,9 @@ public class GetMailServiceImpl implements GetMailService {
             e.printStackTrace();
         }
         this.outPrintExcel(outData,typeName);
+        if ("小米".equals(typeName)){
+            this.outResuMeExcel(messageDtos);
+        }
         if (errorMsg.size() > 0) {
             this.outErrorExcel(errorMsg);
         }
@@ -131,6 +159,43 @@ public class GetMailServiceImpl implements GetMailService {
         try {
             Runtime.getRuntime().exec("cmd /c start C:/tmp");
         } catch (IOException e) {
+        }
+    }
+
+    private void outResuMeExcel(List<MailMessageDto> messageDtos) {
+        String path = "C:" + File.separator + "tmp" + File.separator +"简历信息" + DateUtils.stampToDate(System.currentTimeMillis()) + ".csv";
+        File file = new File(path);
+        try (FileOutputStream out = new FileOutputStream(file);
+             OutputStreamWriter osw = new OutputStreamWriter(out, "gbk");
+             BufferedWriter bw = new BufferedWriter(osw)) {
+            bw.append("简历推送时间").append(",")
+                    .append("姓名").append(",")
+                    .append("联系方式").append(",")
+                    .append("推荐薪资").append(",")
+                    .append("性别").append(",")
+                    .append("技能年限").append(",")
+                    .append("技能").append(",")
+                    .append("学历").append(",")
+                    .append("到位时间").append(",")
+                    .append("HR").append(",")
+                    .append("项目名称").append("\r");
+            int len = messageDtos.size();
+            for (int i = 0; i < len; i++) {
+                bw.append(messageDtos.get(i).getPushTime()).append(",")
+                        .append(messageDtos.get(i).getName()).append(",")
+                        .append(messageDtos.get(i).getPhone()).append(",")
+                        .append(messageDtos.get(i).getSalaryExpectation()).append(",")
+                        .append(messageDtos.get(i).getSex()).append(",")
+                        .append(messageDtos.get(i).getYears()).append(",")
+                        .append(messageDtos.get(i).getPost()).append(",")
+                        .append(messageDtos.get(i).getSalaryNow()).append(",")
+                        .append(messageDtos.get(i).getExpectedArrivalTime()).append(",")
+                        .append(messageDtos.get(i).getHr()).append(",")
+                        .append(messageDtos.get(i).getSubject()).append("\r");
+            }
+        }catch (Exception e){
+            System.err.println("outResuMeExcel==============Error");
+            System.out.println(e.getMessage());
         }
     }
 
@@ -213,7 +278,7 @@ public class GetMailServiceImpl implements GetMailService {
     }
 
 
-    private List<EasyEntryDto> getHandleData(List<EasyEntryDto> outData,String typename) throws Exception {
+    private List<EasyEntryDto> getHandleData(List<EasyEntryDto> outData,String typeName) throws Exception {
         Workbook wb = null;
         String path = "C:" + File.separator + "tmp" + File.separator + "nameCode.xlsx";
         File file = new File(path);
@@ -225,9 +290,9 @@ public class GetMailServiceImpl implements GetMailService {
         while (var8.hasNext()) {
             Row row = (Row) var8.next();
             if (row.getRowNum() > 0) {
-                if("快手".equals(typename)){
+                if("快手".equals(typeName)){
                     nameMap.put(row.getCell(0).toString(), row.getCell(1).toString());
-                }else if ("百度".equals(typename)){
+                }else if ("百度".equals(typeName)||"小米".equals(typeName)){
                     String name= row.getCell(1).toString();
                     if (!ObjectUtils.isEmpty(row.getCell(2))){
                         name = name + "-_-" + row.getCell(2);
@@ -239,9 +304,9 @@ public class GetMailServiceImpl implements GetMailService {
         }
         for (EasyEntryDto outDatum : outData) {
             if (nameMap.containsKey(outDatum.getKey())) {
-                if ("快手".equals(typename)){
+                if ("快手".equals(typeName)){
                     outDatum.setName(nameMap.get(outDatum.getKey()));
-                }else if ("百度".equals(typename)){
+                }else if ("百度".equals(typeName)|| "小米".equals(typeName)){
                     String name = nameMap.get(outDatum.getKey());
                     String team = "";
                     if (name.contains("-_-")){
@@ -274,7 +339,7 @@ public class GetMailServiceImpl implements GetMailService {
                 bw.append("HR").append(",")
                         .append("候选人").append(",")
                         .append("主题").append("\r");
-            }else if("百度".equals(typeName)){
+            }else if("百度".equals(typeName)||"小米".equals(typeName)){
                 bw.append("团队").append(",")
                         .append("HR").append(",")
                         .append("候选人").append(",")
@@ -297,7 +362,7 @@ public class GetMailServiceImpl implements GetMailService {
                                 .append(name).append(",")
                                 .append(subjectName).append("\r");
                     }
-                }else if("百度".equals(typeName)){
+                }else if("百度".equals(typeName)|| "小米".equals(typeName)){
                     for (EasyEntryDto outDatum : outData) {
                         name = "";
                         post = "";

@@ -10,13 +10,25 @@ import java.util.Map;
  */
 public class MailMessageDto {
     /**
-     * 组别
+     * 推送时间
      */
-    private String group;
+    private String pushTime;
+    /**
+     * 联系电话
+     */
+    private String phone;
+    /**
+     * 期望薪资
+     */
+    private String salaryExpectation;
     /**
      * 姓名
      */
     private String name;
+    /**
+     * 性别
+     */
+    private String sex;
     /**
      * 年限
      */
@@ -26,13 +38,10 @@ public class MailMessageDto {
      */
     private String post;
     /**
-     * 现在薪资
+     * 学历
      */
     private String salaryNow;
-    /**
-     * 期望薪资
-     */
-    private String salaryExpectation;
+
     /**
      * 预计到岗时间
      */
@@ -42,10 +51,9 @@ public class MailMessageDto {
      */
     private String hr;
     /**
-     * 联系电话
+     * 项目名称
      */
-    private String phone;
-
+    private String subject;
     /**
      * 重复简历
      */
@@ -55,7 +63,6 @@ public class MailMessageDto {
      */
     private String enclosure;
 
-    private String subject;
 
     private Boolean isEffective;
 
@@ -65,20 +72,28 @@ public class MailMessageDto {
 
     private String count;
 
+    public String getPushTime() {
+        return pushTime;
+    }
+
+    public void setPushTime(String pushTime) {
+        this.pushTime = pushTime;
+    }
+
+    public String getSex() {
+        return sex;
+    }
+
+    public void setSex(String sex) {
+        this.sex = sex;
+    }
+
     public String getSubject() {
         return subject;
     }
 
     public void setSubject(String subject) {
         this.subject = subject;
-    }
-
-    public String getGroup() {
-        return group;
-    }
-
-    public void setGroup(String group) {
-        this.group = group;
     }
 
     public String getName() {
